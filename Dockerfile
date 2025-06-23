@@ -1,6 +1,6 @@
-FROM alpine:latest
+FROM alpine:3.22.0
 
-LABEL org.opencontainers.image.source https://github.com/rdev2021/net-utils
+LABEL maintainer="Ramesh Devaraj"
 
 RUN apk update && apk add --no-cache \
     curl \
