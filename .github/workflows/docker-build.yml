@@ -2,6 +2,7 @@ name: Build and Push Multi-Arch Docker Image
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches:
       - main
@@ -48,3 +49,39 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/net-utils:latest
             ghcr.io/${{ github.repository_owner }}/net-utils:latest
+
+      - name: Delete untagged images from GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          PACKAGE_NAME: net-utils
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+
+          function check_package() {
+            local path="$1"
+            if gh api -H "Accept: application/vnd.github+json" "$path" >/dev/null 2>&1; then
+              echo "$path"
+              return 0
+            fi
+            return 1
+          }
+
+          PACKAGE_API=""
+          if PACKAGE_API=$(check_package "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}" 2>/dev/null); then
+            :
+          elif PACKAGE_API=$(check_package "/users/${OWNER}/packages/container/${PACKAGE_NAME}" 2>/dev/null); then
+            :
+          else
+            echo "Package not found in org or user scope, skipping cleanup."
+            exit 0
+          fi
+
+          echo "Cleaning untagged versions for package: ${PACKAGE_API}"
+          gh api -H "Accept: application/vnd.github+json" "${PACKAGE_API}/versions?per_page=100" --paginate --jq '.[] | select(.metadata.container.tags | length == 0) | .id' | while read -r version_id; do
+            if [[ -n "$version_id" ]]; then
+              echo "Deleting untagged version ${version_id}"
+              gh api -X DELETE -H "Accept: application/vnd.github+json" "${PACKAGE_API}/versions/${version_id}"
+            fi
+          done
