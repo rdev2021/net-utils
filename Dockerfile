@@ -7,6 +7,7 @@ RUN apk update && apk add --no-cache \
     netcat-openbsd \
     bind-tools \
     openssl \
+    nmap \
     bash
 
 CMD ["/bin/bash"]
