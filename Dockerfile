@@ -1,4 +1,5 @@
-FROM alpine:3.22.4
+ARG TAG=latest
+FROM alpine:${TAG}
 
 LABEL maintainer="Ramesh Devaraj"
 
